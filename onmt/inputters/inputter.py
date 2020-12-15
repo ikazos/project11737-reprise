@@ -298,12 +298,14 @@ def _load_vocab(vocab_path, name, counters, min_freq=0):
     """
     # counters changes in place
     vocab, has_count = _read_vocab_file(vocab_path, name)
+    has_count = False  # Temporary Fix to use model.vocab from bpe directly
     vocab_size = len(vocab)
     logger.info('Loaded %s vocab has %d tokens.' % (name, vocab_size))
     if not has_count:
         for i, token in enumerate(vocab):
             # keep the order of tokens specified in the vocab file by
             # adding them to the counter with decreasing counting values
+            token = token[0]
             counters[name][token] = vocab_size - i + min_freq
     else:
         for token, count in vocab:
@@ -415,12 +417,26 @@ def build_vocab(train_dataset_files, fields, data_type, share_vocab,
     else:
         src_vocab = None
 
+    if os.path.isfile(src_vocab_path+".special"):
+        src_special_vocab, src_special_vocab_size = _load_vocab(
+            src_vocab_path+".special", "src.special", counters,
+            src_words_min_frequency)
+    else:
+        src_special_vocab = None
+
     if tgt_vocab_path:
         tgt_vocab, tgt_vocab_size = _load_vocab(
             tgt_vocab_path, "tgt", counters,
             tgt_words_min_frequency)
     else:
         tgt_vocab = None
+
+    if os.path.isfile(tgt_vocab_path+".special"):
+        tgt_special_vocab, tgt_special_vocab_size = _load_vocab(
+            tgt_vocab_path+".special", "tgt.special", counters,
+            tgt_words_min_frequency)
+    else:
+        tgt_special_vocab = None
 
     for i, path in enumerate(train_dataset_files):
         dataset = torch.load(path)
@@ -455,7 +471,8 @@ def build_vocab(train_dataset_files, fields, data_type, share_vocab,
         fields, counters, data_type,
         share_vocab, vocab_size_multiple,
         src_vocab_size, src_words_min_frequency,
-        tgt_vocab_size, tgt_words_min_frequency)
+        tgt_vocab_size, tgt_words_min_frequency,
+        src_special_vocab, tgt_special_vocab)
 
     return fields  # is the return necessary?
 

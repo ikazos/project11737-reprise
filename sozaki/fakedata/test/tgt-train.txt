@@ -1,0 +1,6 @@
+LANG_KOR kor1 kor2 kor3
+LANG_CMN cmn1 cmn2 cmn3 cmn4
+LANG_JPN jpn1 jpn2 jpn3
+LANG_CMN cmn1 cmn2 cmn3 cmn4
+LANG_JPN jpn1 jpn2 jpn3
+LANG_KOR kor1 kor2 kor3 kor4

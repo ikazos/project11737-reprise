@@ -1,0 +1,43 @@
+# test-config.yaml
+
+## Where the samples will be written
+save_data: project11737-reprise/sozaki/fakedata/test/run/example
+## Where the vocab(s) will be written
+src_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.src
+tgt_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.tgt
+# Prevent overwriting existing files in the folder
+overwrite: False
+
+# Corpus opts:
+data:
+    corpus_1:
+        path_src: project11737-reprise/sozaki/fakedata/test/src-train.txt
+        path_tgt: project11737-reprise/sozaki/fakedata/test/tgt-train.txt
+    valid:
+        path_src: project11737-reprise/sozaki/fakedata/test/src-val.txt
+        path_tgt: project11737-reprise/sozaki/fakedata/test/tgt-val.txt
+
+# Vocabulary files that were just created
+# src_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.src
+# tgt_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.tgt
+
+# Train on a single GPU
+world_size: 1
+gpu_ranks: [0]
+
+# Dump .vocab.pt during training.
+# save_data: project11737-reprise/sozaki/fakedata/test/run/example
+# dump_fields: True
+
+# Where to save the checkpoints
+save_model: project11737-reprise/sozaki/fakedata/test/run/model
+save_checkpoint_steps: 500
+train_steps: 1000
+valid_steps: 500
+
+wals_dir: project11737-reprise/sozaki/fakedata/wals
+sigtyp_dir: project11737-reprise/sozaki/fakedata/sigtyp
+vocab_fields: project11737-reprise/sozaki/fakedata/example.vocab.pt
+use_sigtyp_train: True
+use_sigtyp_dev: True
+use_sigtyp_test_blinded: True

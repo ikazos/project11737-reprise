@@ -50,7 +50,15 @@ def build_embeddings(opt, text_field, for_encoder=True):
         word_vocab_size=num_word_embeddings,
         feat_vocab_sizes=num_feat_embeddings,
         sparse=opt.optim == "sparseadam",
-        freeze_word_vecs=freeze_word_vecs
+        freeze_word_vecs=freeze_word_vecs,
+
+        wals_dir=opt.wals_dir,
+        sigtyp_dir=opt.sigtyp_dir,
+        vocab_fields=opt.vocab_fields,
+        use_sigtyp_train=opt.use_sigtyp_train,
+        use_sigtyp_dev=opt.use_sigtyp_dev,
+        use_sigtyp_test_blinded=opt.use_sigtyp_test_blinded,
+        ignore_lang_embeddings=opt.ignore_lang_embeddings
     )
     return emb
 
@@ -237,13 +245,17 @@ def build_base_model(model_opt, fields, gpu, checkpoint=None, gpu_id=None):
     else:
         if model_opt.param_init != 0.0:
             for p in model.parameters():
-                p.data.uniform_(-model_opt.param_init, model_opt.param_init)
+                #   sozaki: Skip my vectors please
+                if not getattr(p, "skip_init", False):
+                    p.data.uniform_(-model_opt.param_init, model_opt.param_init)
             for p in generator.parameters():
                 p.data.uniform_(-model_opt.param_init, model_opt.param_init)
         if model_opt.param_init_glorot:
             for p in model.parameters():
-                if p.dim() > 1:
-                    xavier_uniform_(p)
+                #   sozaki: Skip my vectors please
+                if not getattr(p, "skip_init", False):
+                    if p.dim() > 1:
+                        xavier_uniform_(p)
             for p in generator.parameters():
                 if p.dim() > 1:
                     xavier_uniform_(p)

@@ -3,6 +3,7 @@ import torch
 from onmt.utils.logging import logger
 from onmt.utils.misc import check_path
 from onmt.inputters.fields import get_vocabs
+import os
 
 
 class Transform(object):
@@ -230,6 +231,12 @@ def get_specials(opts, transforms_cls_dict):
         src_specials, tgt_specials = transform_cls.get_specials(opts)
         all_specials['src'].update(src_specials)
         all_specials['tgt'].update(tgt_specials)
+    if os.path.isfile(opts.src_vocab+".special"):
+        with open(os.path.join(opts.src_vocab+".special"), "r") as file:
+            all_specials['src'].update([l.strip() for l in file.readlines()])
+    if os.path.isfile(opts.tgt_vocab+".special"):
+        with open(os.path.join(opts.tgt_vocab+".special"), "r") as file:
+            all_specials['tgt'].update([l.strip() for l in file.readlines()])
     logger.info(f"Get special vocabs from Transforms: {all_specials}.")
     return all_specials
 

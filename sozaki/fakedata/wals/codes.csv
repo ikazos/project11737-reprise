@@ -1,0 +1,10 @@
+ID,Parameter_ID,Name,Description,Number,icon
+1A-1,1A,Value 1A-1,Value 1 for Parameter 1A,1,c000000
+1A-2,1A,Value 1A-2,Value 2 for Parameter 1A,2,c0000ff
+2A-1,2A,Value 2A-1,Value 1 for Parameter 2A,1,c00ff00
+2A-2,2A,Value 2A-2,Value 2 for Parameter 2A,2,c00ffff
+2A-3,2A,Value 2A-3,Value 3 for Parameter 2A,3,cff0000
+2B-1,2B,Value 2B-1,Value 1 for Parameter 2B,1,cff00ff
+2B-2,2B,Value 2B-2,Value 2 for Parameter 2B,2,cffff00
+2B-3,2B,Value 2B-3,Value 3 for Parameter 2B,3,cffffff
+2B-4,2B,Value 2B-4,Value 4 for Parameter 2B,4,c0f0f0f

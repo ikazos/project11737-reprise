@@ -1,0 +1,4 @@
+ID,Name,Macroarea,Latitude,Longitude,Glottocode,ISO639P3code,Family,Subfamily,Genus,ISO_codes,Samples_100,Samples_200
+mnd,Mandarin,,34,110,mand1415,cmn,Sino-Tibetan,,Chinese,cmn,true,true
+jpn,Japanese,,37,140,nucl1643,jpn,,,,jpn,true,true
+kor,Korean,,37.5,128,kore1280,kor,,,,kor,true,true

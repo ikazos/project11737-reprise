@@ -1,0 +1,6 @@
+jpn1 jpn2 jpn3
+jpn4 jpn5 jpn6 jpn7
+kor1 kor2 kor3
+kor4 kor5 kor6 kor7
+cmn1 cmn2 cmn3
+cmn4 cmn5 cmn6 cmn7

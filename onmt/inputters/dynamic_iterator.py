@@ -102,7 +102,7 @@ class DynamicDatasetIter(object):
     def __init__(self, corpora, corpora_info, transforms, fields, is_train,
                  batch_type, batch_size, batch_size_multiple, data_type="text",
                  bucket_size=2048, pool_factor=8192,
-                 skip_empty_level='warning', stride=1, offset=0):
+                 skip_empty_level='warning', stride=1, offset=0, num_dev_bucket=-1):
         self.corpora = corpora
         self.transforms = transforms
         self.fields = fields
@@ -115,6 +115,7 @@ class DynamicDatasetIter(object):
         self.device = 'cpu'
         self.sort_key = str2sortkey[data_type]
         self.bucket_size = bucket_size
+        self.num_dev_bucket = num_dev_bucket
         self.pool_factor = pool_factor
         if stride <= 0:
             raise ValueError(f"Invalid argument for stride={stride}.")
@@ -139,7 +140,7 @@ class DynamicDatasetIter(object):
             batch_size, batch_size_multiple, data_type=opts.data_type,
             bucket_size=opts.bucket_size, pool_factor=opts.pool_factor,
             skip_empty_level=opts.skip_empty_level,
-            stride=stride, offset=offset
+            stride=stride, offset=offset, num_dev_bucket=opts.num_dev_bucket
         )
 
     def _init_datasets(self):

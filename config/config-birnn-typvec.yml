@@ -1,0 +1,56 @@
+data:
+    corpus_1:
+        path_src: project11737-reprise/sozaki/fakedata/test/src-train.txt
+        path_tgt: project11737-reprise/sozaki/fakedata/test/tgt-train.txt
+    valid:
+        path_src: project11737-reprise/sozaki/fakedata/test/src-val.txt
+        path_tgt: project11737-reprise/sozaki/fakedata/test/tgt-val.txt
+
+wals_dir: /home/ubuntu/project11737-reprise/sozaki/fakedata/wals
+sigtyp_dir: /home/ubuntu/project11737-reprise/sozaki/fakedata/sigtyp
+vocab_fields: /home/ubuntu/project11737-reprise/sozaki/fakedata/example.vocab.pt
+
+use_sigtyp_train: True
+use_sigtyp_dev: True
+use_sigtyp_test_blinded: True
+
+src_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.src
+tgt_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.tgt
+
+save_model: /home/ubuntu/project11737-reprise/saved_models/typvec/model
+save_data: /home/ubuntu/project11737-reprise/saved_data/typvec/data
+overwrite: False
+
+
+save_checkpoint_steps: 5000
+keep_checkpoint: 10
+seed: 3435
+train_steps: 100000
+valid_steps: 10000
+report_every: 100
+
+rnn_type: LSTM
+encoder_type: brnn
+word_vec_size: 512
+rnn_size: 512
+layers: 2
+
+accum_count: 8
+optim: adam
+# decay_method: noam
+learning_rate: 0.001
+
+batch_size: 128
+dropout: 0.5
+
+copy_attn: 'true'
+global_attention: mlp
+reuse_copy_attn: 'true'
+bridge: 'true'
+
+world_size: 4
+gpu_ranks:
+- 0
+- 1
+- 2
+- 3

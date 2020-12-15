@@ -1,0 +1,65 @@
+data:
+    corpus_1:
+        path_src: /home/ubuntu/project11737-reprise/data/toy100/bpe-bible-com/altogether/eng-as-tgt-lang/src-train.txt
+        path_tgt: /home/ubuntu/project11737-reprise/data/toy100/bpe-bible-com/altogether/eng-as-tgt-lang/tgt-train.txt
+    valid:
+        path_src: /home/ubuntu/project11737-reprise/data/toy100/bpe-bible-com/altogether/eng-as-tgt-lang/src-val.txt
+        path_tgt: /home/ubuntu/project11737-reprise/data/toy100/bpe-bible-com/altogether/eng-as-tgt-lang/tgt-val.txt
+
+num_dev_bucket: 500
+wals_dir: /home/ubuntu/project11737-reprise/sozaki/realdata/wals
+sigtyp_dir: /home/ubuntu/project11737-reprise/sozaki/realdata/sigtyp
+vocab_fields: /home/ubuntu/project11737-reprise/saved_data/toy100/typvec/data.vocab.pt
+# vocab_fields: /home/ubuntu/project11737-reprise/sozaki/fakedata/example.vocab.pt
+
+use_sigtyp_train: True
+use_sigtyp_dev: True
+use_sigtyp_test_blinded: True
+
+src_vocab: /home/ubuntu/project11737-reprise/data/toy100/bpe-bible-com/model.vocab
+tgt_vocab: /home/ubuntu/project11737-reprise/data/toy100/bpe-bible-com/model.vocab
+src_vocab_size: 64000
+tgt_vocab_size: 64000
+share_vocab: True
+dump_fields: True
+
+save_model: /home/ubuntu/project11737-reprise/saved_models/toy100/typvec/model
+save_data: /home/ubuntu/project11737-reprise/saved_data/toy100/typvec/data
+log_file: /home/ubuntu/project11737-reprise/logs/toy100/typvec.log
+gpu_verbose_level: 0
+overwrite: True
+
+save_checkpoint_steps: 20
+keep_checkpoint: 10
+seed: 3435
+train_steps: 12000
+valid_steps: 20
+report_every: 10
+
+rnn_type: LSTM
+encoder_type: brnn
+word_vec_size: 512
+rnn_size: 512
+layers: 2
+
+accum_count: 8
+optim: adam
+# decay_method: noam
+learning_rate: 0.001
+
+batch_size: 64
+valid_batch_size: 64
+dropout: 0.5
+
+copy_attn: 'true'
+global_attention: mlp
+reuse_copy_attn: 'true'
+bridge: 'true'
+
+
+world_size: 4
+gpu_ranks:
+- 0
+- 1
+- 2
+- 3

@@ -9,6 +9,11 @@ import torch.nn as nn
 from onmt.modules.util_class import Elementwise
 from onmt.utils.logging import logger
 
+from onmt.modules.walsinfo import WalsInfo
+from onmt.modules.sigtyp import Sigtyp
+from onmt.modules.special_embeddings import LookupEmbedding, ParameterEmbedding, WordOrLanguageEmbedding
+import os
+
 
 class SequenceTooLongError(Exception):
     pass
@@ -117,9 +122,70 @@ class Embeddings(nn.Module):
                  feat_vocab_sizes=[],
                  dropout=0,
                  sparse=False,
-                 freeze_word_vecs=False):
+                 freeze_word_vecs=False,
+
+                 wals_dir=None,
+                 sigtyp_dir=None,
+                 vocab_fields=None,
+                 use_sigtyp_train=True,
+                 use_sigtyp_dev=True,
+                 use_sigtyp_test_blinded=True,
+                 ignore_lang_embeddings=False):
         self._validate_args(feat_merge, feat_vocab_sizes, feat_vec_exponent,
                             feat_vec_size, feat_padding_idx)
+
+        if not ignore_lang_embeddings:
+            # Parse and load WALS information.
+            codes_path      = os.path.join(wals_dir, "codes.csv")
+            languages_path  = os.path.join(wals_dir, "languages.csv")
+            parameters_path = os.path.join(wals_dir, "parameters.csv")
+
+            with open(codes_path, "r") as codes_csvfile:
+                with open(languages_path, "r") as languages_csvfile:
+                    with open(parameters_path, "r") as parameters_csvfile:
+                        walsinfo = WalsInfo.from_files(codes_csvfile, languages_csvfile, parameters_csvfile)
+
+            # Parse and load SIGTYP information.
+            sigtyp = Sigtyp(walsinfo)
+
+            if use_sigtyp_train:
+                sigtyp_train_path = os.path.join(sigtyp_dir, "train.csv")
+                with open(sigtyp_train_path, "r") as sigtyp_train_file:
+                    sigtyp.add_from_st2020(sigtyp_train_file)
+
+            if use_sigtyp_dev:
+                sigtyp_dev_path = os.path.join(sigtyp_dir, "dev.csv")
+                with open(sigtyp_dev_path, "r") as sigtyp_dev_file:
+                    sigtyp.add_from_st2020(sigtyp_dev_file)
+
+            if use_sigtyp_test_blinded:
+                sigtyp_test_blinded_path = os.path.join(sigtyp_dir, "test_blinded.csv")
+                with open(sigtyp_test_blinded_path, "r") as sigtyp_test_blinded_file:
+                    sigtyp.add_from_st2020(sigtyp_test_blinded_file)
+
+            # Parse and load the language ID list.
+            #   See https://forum.opennmt.net/t/getting-the-vocabulary-after-preprocessing/2883/4
+            #   See https://github.com/OpenNMT/OpenNMT-py/issues/332
+            vocab = torch.load(vocab_fields)
+
+            #   Process both source and target side.
+            src_stoi = vocab["src"].fields[0][1].vocab.stoi
+            tgt_stoi = vocab["tgt"].fields[0][1].vocab.stoi
+
+            #   List of (iso639p3, vocab idx)s.
+            langs = []
+
+            #   List of vocab idx's.
+            lang_id_idxs = []
+
+            for (token, idx) in list(src_stoi.items()) + list(tgt_stoi.items()):
+                if token.startswith("LANG_"):
+                    iso639p3 = token[5:].lower()
+                    langs.append((iso639p3, idx))
+                    lang_id_idxs.append(idx)
+
+            lookup_embedding = LookupEmbedding(sigtyp, langs)
+            param_embedding = ParameterEmbedding(sigtyp, word_vec_size)
 
         if feat_padding_idx is None:
             feat_padding_idx = []
@@ -148,8 +214,24 @@ class Embeddings(nn.Module):
         # The embedding matrix look-up tables. The first look-up table
         # is for words. Subsequent ones are for features, if any exist.
         emb_params = zip(vocab_sizes, emb_dims, pad_indices)
-        embeddings = [nn.Embedding(vocab, dim, padding_idx=pad, sparse=sparse)
-                      for vocab, dim, pad in emb_params]
+
+        #   sozaki: the first embedding is a WordOrLanguageEmbedding.
+        #   Everything else are normal embeddings.
+        embeddings = []
+        for k, (vocab, dim, pad) in enumerate(emb_params):
+            embedding = nn.Embedding(vocab, dim, padding_idx=pad, sparse=sparse)
+
+            if (not ignore_lang_embeddings) and (k == 0):
+                wol_embedding = WordOrLanguageEmbedding(
+                    embedding,
+                    lookup_embedding,
+                    param_embedding,
+                    lang_id_idxs
+                )
+                embeddings.append(wol_embedding)
+            else:
+                embeddings.append(embedding)
+
         emb_luts = Elementwise(feat_merge, embeddings)
 
         # The final output size of word + feature vectors. This can vary

@@ -1,0 +1,3 @@
+KOR	0
+CMN	1
+JPN	2

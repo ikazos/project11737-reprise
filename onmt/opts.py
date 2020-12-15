@@ -93,6 +93,11 @@ def _add_dynamic_corpus_opts(parser, build_vocab_only=False):
         + "this number of transformed samples/corpus. Can be [-1, 0, N>0]. "
         "Set to -1 to go full corpus, 0 to skip.")
 
+    group.add(
+        '-num_dev_bucket', '--num_dev_bucket',
+        type=int, default=-1,
+        help="number of dataset-iter bucket to use for validation")
+
     if not build_vocab_only:
         group.add('-dump_fields', '--dump_fields', action='store_true',
                   help="Dump fields `*.vocab.pt` to disk."
@@ -168,6 +173,26 @@ def _add_dynamic_fields_opts(parser, build_vocab_only=False):
         group.add('-embeddings_type', '--embeddings_type',
                   choices=["GloVe", "word2vec"],
                   help="Type of embeddings file.")
+
+        group = parser.add_argument_group('Language embeddings')
+        group.add('-wals_dir', '--wals_dir',
+                  help="Directory containing CSV files downloaded from https://github.com/cldf-datasets/wals/blob/master/cldf, specifically `codes.csv`, `languages.csv` and `parameters.csv`. See `sozaki-notes.md` for details.")
+        group.add('-sigtyp_dir', '--sigtyp_dir',
+                  help="Directory containing CSV files downloaded from https://github.com/sigtyp/ST2020/blob/master/data, specifically `train.csv`, `dev.csv` and `test_blinded.csv`. See `sozaki-notes.md` for details.")
+        group.add('-vocab_fields', '--vocab_fields',
+                  help="Path to the vocab file `*.vocab.pt` dumped by `onmt_train`. See `sozaki-notes.md` for details.")
+        group.add('-use_sigtyp_train', '--use_sigtyp_train',
+                  action="store_true",
+                  help="Use `train.csv`, i.e. the training set from the SIGTYP dataset.")
+        group.add('-use_sigtyp_dev', '--use_sigtyp_dev',
+                  action="store_true",
+                  help="Use `dev.csv`, i.e. the dev set from the SIGTYP dataset.")
+        group.add('-use_sigtyp_test_blinded', '--use_sigtyp_test_blinded',
+                  action="store_true",
+                  help="Use `test_blinded.csv`, i.e. the (blinded) test set from the SIGTYP dataset.")
+        group.add('-ignore_lang_embeddings', '--ignore_lang_embeddings',
+                  action="store_true",
+                  help="Ignore language embeddings and treat language ID tokens as regular words.")
 
 
 def _add_dynamic_transform_opts(parser):

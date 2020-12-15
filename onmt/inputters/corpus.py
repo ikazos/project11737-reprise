@@ -219,11 +219,11 @@ class ParallelCorpusIterator(object):
             if (len(example['src']) == 0 or len(example['tgt']) == 0 or
                     ('align' in example and example['align'] == 0)):
                 # empty example: skip
-                empty_msg = f"Empty line exists in {self.cid}#{line_number}."
-                if self.skip_empty_level == 'error':
-                    raise IOError(empty_msg)
-                elif self.skip_empty_level == 'warning':
-                    logger.warning(empty_msg)
+                # empty_msg = f"Empty line exists in {self.cid}#{line_number}."
+                # if self.skip_empty_level == 'error':
+                #     raise IOError(empty_msg)
+                # elif self.skip_empty_level == 'warning':
+                #     logger.warning(empty_msg)
                 continue
             yield item
 
