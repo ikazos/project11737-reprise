@@ -21,7 +21,23 @@ class LookupEmbedding(nn.Module):
 
         num_values = 0
         for param_idx in self.used_param_idxs:
-            num_values += len(self.walsinfo.param_idx_to_param_value_idx_to_param_value_name[param_idx])
+            param_values_dict = self.walsinfo.param_idx_to_param_value_idx_to_param_value_name[param_idx]
+
+            param_name = self.walsinfo.param_idx_to_name[param_idx]
+            param_id = self.walsinfo.param_idx_to_id[param_idx]
+            param_space_size = len(param_values_dict)
+
+            logger.info("Parameter {} (offset +{}):".format(param_idx, num_values))
+            logger.info(" >> Name: {}".format(param_name))
+            logger.info(" >> ID: {}".format(param_id))
+            logger.info(" >> Parameter value space size: {}".format(param_space_size))
+
+            for (param_value_idx, param_value_name) in param_values_dict.items():
+                logger.info("     >> Parameter value {} (offset +{}), name: {}".format(param_value_idx, param_value_idx-1, param_value_name))
+            
+            num_values += param_space_size
+
+        logger.info("Embedding dimension: {}".format(num_values))
 
         ### Maps vocab index of language to index in the embedding weight.
         ### First, calculate the lang ID token with the maximum vocab idx.
@@ -128,14 +144,16 @@ class ParameterEmbedding(nn.Module):
         normal = Normal(0.0, 0.001)
         emb_weight = normal.sample((num_values, emb_dim))
         emb_weight.requires_grad = True
-        self.register_parameter(name="embedding", param=nn.Parameter(emb_weight.cuda()))
+        # self.register_parameter(name="embedding", param=nn.Parameter(emb_weight.cuda()))
+        self.embedding = nn.Parameter(emb_weight.cuda(), requires_grad=True)
         self.embedding.skip_init = True
 
         #   It's probably ok to just initialize weights to 1's
         num_params = len(self.used_param_idxs)
         #weights = torch.ones((num_params,), dtype=torch.float32, requires_grad=True)
         weights = torch.arange(num_params, dtype=torch.float32, requires_grad=True) / 10.0
-        self.register_parameter(name="weights", param=nn.Parameter(weights.cuda()))
+        # self.register_parameter(name="weights", param=nn.Parameter(weights.cuda()))
+        self.weights = nn.Parameter(weights.cuda(), requires_grad=True)
         self.weights.skip_init = True
 
         weight_idxs = []

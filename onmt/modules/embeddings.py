@@ -148,20 +148,29 @@ class Embeddings(nn.Module):
             # Parse and load SIGTYP information.
             sigtyp = Sigtyp(walsinfo)
 
+            sigtyp_train_path = os.path.join(sigtyp_dir, "train.csv")
             if use_sigtyp_train:
-                sigtyp_train_path = os.path.join(sigtyp_dir, "train.csv")
+                logger.info("Reading {}...".format(sigtyp_train_path))
                 with open(sigtyp_train_path, "r") as sigtyp_train_file:
                     sigtyp.add_from_st2020(sigtyp_train_file)
+            else:
+                logger.info("Skipping {}.".format(sigtyp_train_path))
 
+            sigtyp_dev_path = os.path.join(sigtyp_dir, "dev.csv")
             if use_sigtyp_dev:
-                sigtyp_dev_path = os.path.join(sigtyp_dir, "dev.csv")
+                logger.info("Reading {}...".format(sigtyp_dev_path))
                 with open(sigtyp_dev_path, "r") as sigtyp_dev_file:
                     sigtyp.add_from_st2020(sigtyp_dev_file)
+            else:
+                logger.info("Skipping {}.".format(sigtyp_dev_path))
 
+            sigtyp_test_blinded_path = os.path.join(sigtyp_dir, "test_blinded.csv")
             if use_sigtyp_test_blinded:
-                sigtyp_test_blinded_path = os.path.join(sigtyp_dir, "test_blinded.csv")
+                logger.info("Reading {}...".format(sigtyp_test_blinded_path))
                 with open(sigtyp_test_blinded_path, "r") as sigtyp_test_blinded_file:
                     sigtyp.add_from_st2020(sigtyp_test_blinded_file)
+            else:
+                logger.info("Skipping {}.".format(sigtyp_test_blinded_path))
 
             # Parse and load the language ID list.
             #   See https://forum.opennmt.net/t/getting-the-vocabulary-after-preprocessing/2883/4
@@ -178,8 +187,12 @@ class Embeddings(nn.Module):
             #   List of vocab idx's.
             lang_id_idxs = []
 
-            for (token, idx) in list(src_stoi.items()) + list(tgt_stoi.items()):
-                if token.startswith("LANG_"):
+            combined_tokens = list(src_stoi.items()) + list(tgt_stoi.items())
+
+            for (token, idx) in combined_tokens:
+                #   Check for dupes, because the same language token might
+                #   appear in both src and tgt vocab
+                if token.startswith("LANG_") and (idx not in lang_id_idxs):
                     iso639p3 = token[5:].lower()
                     langs.append((iso639p3, idx))
                     lang_id_idxs.append(idx)
