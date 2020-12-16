@@ -220,6 +220,7 @@ class Trainer(object):
         total_stats = onmt.utils.Statistics()
         report_stats = onmt.utils.Statistics()
         self._start_report_manager(start_time=total_stats.start_time)
+        early_stopped = False
 
         for i, (batches, normalization) in enumerate(
                 self._accum_batches(train_iter)):
@@ -271,18 +272,26 @@ class Trainer(object):
                     self.earlystopper(valid_stats, step)
                     # If the patience has reached the limit, stop training
                     if self.earlystopper.has_stopped():
+                        early_stopped = True
                         break
 
             if (self.model_saver is not None
                     and (save_checkpoint_steps != 0
                          and step % save_checkpoint_steps == 0)):
-                self.model_saver.save(step, moving_average=self.moving_average)
+                self.model_saver.save(step, moving_average=self.moving_average, validation_ppl=valid_stats.ppl(
+                ), validation_acc=valid_stats.accuracy())
 
             if train_steps > 0 and step >= train_steps:
                 break
 
         if self.model_saver is not None:
-            self.model_saver.save(step, moving_average=self.moving_average)
+            best_step = None
+            if early_stopped:
+                best_step = self.earlystopper.current_step_best
+
+            self.model_saver.save(step, moving_average=self.moving_average, validation_ppl=valid_stats.ppl(
+            ), validation_acc=valid_stats.accuracy())
+            # self.model_saver.save(step, moving_average=self.moving_average)
         return total_stats
 
     def validate(self, valid_iter, moving_average=None):
