@@ -2,6 +2,7 @@ import argparse
 import sentencepiece as spm
 from tqdm import tqdm
 import os
+import random
 from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser(
@@ -94,7 +95,7 @@ for engside in ("eng-as-src", "eng-as-tgt"):
         if not os.path.isdir(os.path.join(altogether_out_dir, "{}-{}".format(engside, lang))):
             os.mkdir(os.path.join(altogether_out_dir,
                                   "{}-{}".format(engside, lang)))
-        for side in ("src", "tgt", "src-train", "src-val", "tgt-train", "tgt-val"):
+        for side in ("src", "tgt", "src-train", "src-val", "tgt-train", "tgt-val", "src-val-sampled", "tgt-val-sampled"):
             path = os.path.join(altogether_out_dir,
                                 "{}-{}".format(engside, lang), "{}.txt".format(side))
             altogether_out_files[engside][lang][side] = open(path, "w+")
@@ -138,14 +139,15 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
     dict_eng_out = {"full": eng_out}
     dict_eng_out_lang = {"full": eng_out_lang}
     try:
-        dict_noneng_out["train"], dict_noneng_out["val"] = train_test_split(
-            noneng_out, test_size=RATIO_VAL)
-        dict_noneng_out_lang["train"], dict_noneng_out_lang["val"] = train_test_split(
-            noneng_out_lang, test_size=RATIO_VAL)
-        dict_eng_out["train"], dict_eng_out["val"] = train_test_split(
-            eng_out, test_size=RATIO_VAL)
-        dict_eng_out_lang["train"], dict_eng_out_lang["val"] = train_test_split(
-            eng_out_lang, test_size=RATIO_VAL)
+        temp_train, temp_val = train_test_split(
+            list(zip(noneng_out, noneng_out_lang, eng_out, eng_out_lang)), test_size=RATIO_VAL)
+        sampled_temp_val = random.sample(temp_val, min(1000, len(temp_val)))
+        dict_noneng_out["train"], dict_noneng_out_lang["train"], dict_eng_out["train"], dict_eng_out_lang["train"] = zip(
+            *temp_train)
+        dict_noneng_out["val"], dict_noneng_out_lang["val"], dict_eng_out["val"], dict_eng_out_lang["val"] = zip(
+            *temp_val)
+        dict_noneng_out["val-sampled"], dict_noneng_out_lang["val-sampled"], dict_eng_out["val-sampled"], dict_eng_out_lang["val-sampled"] = zip(
+            *sampled_temp_val)
     except:
         print(subdir)
         print(len(noneng_out))
@@ -171,6 +173,8 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                     subdir_out_lang_dir, "{}-train.txt".format(side))
                 path_val = os.path.join(
                     subdir_out_lang_dir, "{}-val.txt".format(side))
+                path_val_sample = os.path.join(
+                    subdir_out_lang_dir, "{}-val-sampled.txt".format(side))
 
                 with open(path, "w+") as f:
                     if (engside, lang, side) == ("eng-as-src", "lang", "src"):
@@ -182,6 +186,9 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_eng_out_lang["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_eng_out_lang["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
                     elif (engside, lang, side) == ("eng-as-src", "lang", "tgt"):
                         pack_and_write(
@@ -192,6 +199,9 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_noneng_out["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_noneng_out["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
                     elif (engside, lang, side) == ("eng-as-src", "nolang", "src"):
                         pack_and_write(
@@ -202,6 +212,9 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_eng_out["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_eng_out["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
                     elif (engside, lang, side) == ("eng-as-src", "nolang", "tgt"):
                         pack_and_write(
@@ -212,6 +225,9 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_noneng_out["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_noneng_out["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
                     elif (engside, lang, side) == ("eng-as-tgt", "lang", "src"):
                         pack_and_write(
@@ -222,6 +238,9 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_noneng_out_lang["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_noneng_out_lang["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
                     elif (engside, lang, side) == ("eng-as-tgt", "lang", "tgt"):
                         pack_and_write(
@@ -232,6 +251,9 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_eng_out["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_eng_out["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
                     elif (engside, lang, side) == ("eng-as-tgt", "nolang", "src"):
                         pack_and_write(
@@ -242,6 +264,9 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_noneng_out["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_noneng_out["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
                     elif (engside, lang, side) == ("eng-as-tgt", "nolang", "tgt"):
                         pack_and_write(
@@ -252,11 +277,14 @@ for subdir in tqdm(os.listdir(args.sep_bible_dir)):
                         with open(path_val, "w+") as f_val:
                             pack_and_write(
                                 dict_eng_out["val"], f_val, altogether_out_files[engside][lang][side+"-val"])
+                        with open(path_val_sample, "w+") as f_val_sample:
+                            pack_and_write(
+                                dict_eng_out["val-sampled"], f_val_sample, altogether_out_files[engside][lang][side+"-val-sampled"])
 
 #   Close the files.
 for engside in ("eng-as-src", "eng-as-tgt"):
     for lang in ("lang", "nolang"):
-        for side in ("src", "tgt", "src-train", "src-val", "tgt-train", "tgt-val"):
+        for side in ("src", "tgt", "src-train", "src-val", "tgt-train", "tgt-val", "src-val-sampled", "tgt-val-sampled"):
             altogether_out_files[engside][lang][side].close()
 
 # save special language tokens
