@@ -190,6 +190,8 @@ def _add_dynamic_fields_opts(parser, build_vocab_only=False):
         group.add('-use_sigtyp_test_blinded', '--use_sigtyp_test_blinded',
                   action="store_true",
                   help="Use `test_blinded.csv`, i.e. the (blinded) test set from the SIGTYP dataset.")
+        group.add('-save_lang_embed_info', '--save_lang_embed_info',
+                  help="Save mapping info generated, later to be used for extraction.")
         group.add('-ignore_lang_embeddings', '--ignore_lang_embeddings',
                   action="store_true",
                   help="Ignore language embeddings and treat language ID tokens as regular words.")

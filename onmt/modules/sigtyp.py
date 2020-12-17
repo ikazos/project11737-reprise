@@ -12,6 +12,7 @@ StringInfo = namedtuple("StringInfo", [
     "iso639p3", "name", "genus", "family", "param_dict"
 ])
 
+
 class Sigtyp:
     """
     An object that can be used to construct a pair of special embedding layers, namely a language embedding layer and a language property embedding layer.
@@ -25,30 +26,32 @@ class Sigtyp:
 
         self.walsinfo = walsinfo
 
-        ### Each dictionary maps param index to param value index.
+        # Each dictionary maps param index to param value index.
         self.param_dicts = []
+        self.pred_param_dicts = {}
 
-        ### Maps genus index to genus (string).
+        # Maps genus index to genus (string).
         self.genus_i2s = []
 
-        ### Maps genus (string) to genus index.
+        # Maps genus (string) to genus index.
         self.genus_s2i = dict()
 
-        ### Maps family index to family (string).
+        # Maps family index to family (string).
         self.family_i2s = []
 
-        ### Maps family (string) to family index.
+        # Maps family (string) to family index.
         self.family_s2i = dict()
 
-        ### The set of param indices that are actually used in this dataset.
+        # The set of param indices that are actually used in this dataset.
         self.used_param_idxs = set()
         if use_all_params:
-            self.used_param_idxs = set(range(len(self.walsinfo.param_idx_to_id)))
+            self.used_param_idxs = set(
+                range(len(self.walsinfo.param_idx_to_id)))
 
     def add_from_st2020(self, csvfile):
         """
         Return a embedding pair builder object constructed from the given `csvfile`.
-        
+
         The specified CSV file must be downloaded from https://github.com/sigtyp/ST2020/blob/master/data.
         """
 
@@ -56,7 +59,7 @@ class Sigtyp:
 
         first_row = True
         for row in reader:
-            ### Skip the first row.
+            # Skip the first row.
             if first_row:
                 first_row = False
                 continue
@@ -72,14 +75,14 @@ class Sigtyp:
             family_string = row[5]
             params_raw = row[7]
 
-            ### Get the ISO 639-3 code.
+            # Get the ISO 639-3 code.
             try:
                 iso639p3 = self.walsinfo.wals_code_to_iso639p3[wals_code]
             except KeyError:
-                ### We can't even find the ISO 639-3 code, skip
+                # We can't even find the ISO 639-3 code, skip
                 continue
 
-            ### Get the genus index, adding it into the list/dict if new.
+            # Get the genus index, adding it into the list/dict if new.
             if genus_string not in self.genus_i2s:
                 genus_idx = len(self.genus_i2s)
                 self.genus_i2s.append(genus_string)
@@ -87,7 +90,7 @@ class Sigtyp:
 
             genus_idx = self.genus_s2i[genus_string]
 
-            ### Get the family index, adding it into the list/dict if new.
+            # Get the family index, adding it into the list/dict if new.
             if family_string not in self.family_i2s:
                 family_idx = len(self.family_i2s)
                 self.family_i2s.append(family_string)
@@ -95,7 +98,7 @@ class Sigtyp:
 
             family_idx = self.family_s2i[family_string]
 
-            ### Parse the raw param description.
+            # Parse the raw param description.
             param_dict = self.parse_raw_params(params_raw)
 
             self.iso639p3s.append(iso639p3)
@@ -110,36 +113,40 @@ class Sigtyp:
         """
         param_dict = dict()
 
-        ### params_raw:
-        ### Consonant_Inventories=1 Small|Vowel_Quality_Inventories=2 Average (5-6)|...
+        # params_raw:
+        # Consonant_Inventories=1 Small|Vowel_Quality_Inventories=2 Average (5-6)|...
 
         kv_pair_raws = params_raw.split("|")
         for kv_pair_raw in kv_pair_raws:
             split_idx = kv_pair_raw.index("=")
             kv_pair = (
-                kv_pair_raw[:split_idx],            ### Consonant_Inventories
-                kv_pair_raw[split_idx+1:]           ### 1 Small
+                kv_pair_raw[:split_idx],  # Consonant_Inventories
+                kv_pair_raw[split_idx+1:]  # 1 Small
             )
 
-            param_string = kv_pair[0].replace("_", " ")                 ### Consonant Inventories
+            param_string = kv_pair[0].replace(
+                "_", " ")  # Consonant Inventories
 
-            ### Get the param index.
+            # Get the param index.
             param_idx = self.walsinfo.param_name_to_idx[param_string]
 
             self.used_param_idxs.add(param_idx)
 
-            ### Only try and find the param value if it's not "?", i.e. unknown.
+            # Only try and find the param value if it's not "?", i.e. unknown.
             if kv_pair[1] != "?":
-                param_value_string = kv_pair[1][kv_pair[1].index(" ")+1:]   ### Small
+                param_value_string = kv_pair[1][kv_pair[1].index(
+                    " ")+1:]  # Small
 
-                ### Get the param value index.
+                # Get the param value index.
                 try:
-                    param_value_idx = self.walsinfo.param_idx_to_param_value_name_to_param_value_idx[param_idx][param_value_string]
+                    param_value_idx = self.walsinfo.param_idx_to_param_value_name_to_param_value_idx[
+                        param_idx][param_value_string]
                 except KeyError as e:
                     print("param_string:", param_string)
                     print("param_idx:", param_idx)
                     print("param_value_string:", param_value_string)
-                    print("param_value_name_to_param_value_idx:", self.walsinfo.param_idx_to_param_value_name_to_param_value_idx[param_idx])
+                    print("param_value_name_to_param_value_idx:",
+                          self.walsinfo.param_idx_to_param_value_name_to_param_value_idx[param_idx])
                     print("params_raw:", params_raw)
 
                     raise e
@@ -173,11 +180,12 @@ class Sigtyp:
 
         for param_idx, param_value_idx in param_dict.items():
             param_name = self.walsinfo.param_idx_to_name[param_idx]
-            param_value_name = self.walsinfo.param_idx_to_param_value_idx_to_param_value_name[param_idx][param_value_idx]
+            param_value_name = self.walsinfo.param_idx_to_param_value_idx_to_param_value_name[
+                param_idx][param_value_idx]
 
             param_string_dict[param_name] = param_value_name
 
-        return StringInfo (
+        return StringInfo(
             self.iso639p3s[lang_idx],
             self.names[lang_idx],
             genus,
@@ -189,7 +197,7 @@ class Sigtyp:
         """
         Print the information encoded in this embedding pair builder.
         """
-        
+
         print("Number of genuses:", len(self.genus_i2s))
         print("Number of families:", len(self.family_i2s))
         print("Number of params:", len(self.used_param_idxs))

@@ -130,6 +130,7 @@ class Embeddings(nn.Module):
                  use_sigtyp_train=True,
                  use_sigtyp_dev=True,
                  use_sigtyp_test_blinded=True,
+                 save_lang_embed_info=None,
                  ignore_lang_embeddings=False):
         self._validate_args(feat_merge, feat_vocab_sizes, feat_vec_exponent,
                             feat_vec_size, feat_padding_idx)
@@ -196,6 +197,16 @@ class Embeddings(nn.Module):
                     iso639p3 = token[5:].lower()
                     langs.append((iso639p3, idx))
                     lang_id_idxs.append(idx)
+
+            #   Save all this info.
+            info = {
+                "langs": langs,
+                "sigtyp": sigtyp,
+                "walsinfo": walsinfo,
+            }
+
+            logger.info("Saving all this info to {}...".format(save_lang_embed_info))
+            torch.save(info, save_lang_embed_info)
 
             lookup_embedding = LookupEmbedding(sigtyp, langs)
             param_embedding = ParameterEmbedding(sigtyp, word_vec_size)
@@ -276,6 +287,15 @@ class Embeddings(nn.Module):
 
         if freeze_word_vecs:
             self.word_lut.weight.requires_grad = False
+
+    def share_weights_with(self, other):
+        wol = self.make_embedding[0][0]
+        other_wol = other.make_embedding[0][0]
+
+        wol.word_embedding.weight = other_wol.word_embedding.weight
+        wol.lang_embedding[0].embedding.weight = other_wol.lang_embedding[0].embedding.weight
+        wol.lang_embedding[1].embedding = other_wol.lang_embedding[1].embedding
+        wol.lang_embedding[1].weights = other_wol.lang_embedding[1].weights
 
     def _validate_args(self, feat_merge, feat_vocab_sizes, feat_vec_exponent,
                        feat_vec_size, feat_padding_idx):

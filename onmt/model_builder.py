@@ -58,6 +58,7 @@ def build_embeddings(opt, text_field, for_encoder=True):
         use_sigtyp_train=opt.use_sigtyp_train,
         use_sigtyp_dev=opt.use_sigtyp_dev,
         use_sigtyp_test_blinded=opt.use_sigtyp_test_blinded,
+        save_lang_embed_info=opt.save_lang_embed_info,
         ignore_lang_embeddings=opt.ignore_lang_embeddings
     )
     return emb
@@ -136,7 +137,8 @@ def build_decoder_with_embeddings(
     tgt_emb = build_embeddings(model_opt, tgt_field, for_encoder=False)
 
     if share_embeddings:
-        tgt_emb.word_lut.weight = src_emb.word_lut.weight
+        # tgt_emb.word_lut.weight = src_emb.word_lut.weight
+        tgt_emb.share_weights_with(src_emb)
 
     # Build decoder.
     decoder = build_decoder(model_opt, tgt_emb)

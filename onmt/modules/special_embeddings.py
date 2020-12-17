@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions.normal import Normal
 
 from onmt.utils.logging import logger
@@ -62,6 +63,8 @@ class LookupEmbedding(nn.Module):
         weight = torch.zeros((num_embeddings, embedding_dim)).cuda()
         self.gold = torch.zeros((num_embeddings, embedding_dim)).cuda()
         self.gold_mask = torch.zeros((num_embeddings, embedding_dim), dtype=torch.bool).cuda()
+        # self.denom_mask = torch.zeros((embedding_dim, embedding_dim), dtype=torch.bool).cuda()
+        self.softmax_sizes = []
 
         for k, lang in enumerate(langs):
             iso639p3 = lang[0]
@@ -82,6 +85,12 @@ class LookupEmbedding(nn.Module):
                     weight[k][offset + param_value_idx] = 1.0
                     self.gold[k][offset + param_value_idx] = 1.0
                     self.gold_mask[k][offset : offset + param_value_space_size] = True
+
+                #   We only need to fill denom_mask once (for one language)
+                # if k == 0:
+                #     self.denom_mask[offset : offset + param_value_space_size, offset : offset + param_value_space_size] = True
+                if k == 0:
+                    self.softmax_sizes.append(param_value_space_size)
 
                 offset += param_value_space_size
 
@@ -123,7 +132,22 @@ class LookupEmbedding(nn.Module):
         xcap = x.min(self.max_lang_vocab_idx)
         y = torch.index_select(self.lang_map, 0, xcap.flatten()).reshape(x.shape)
 
-        return self.embedding(y)
+        y = self.embedding(y)
+
+        #   Homebrew softmax
+        """
+        num = y.exp()
+
+        ndims = len(num.shape)
+        sizes = (1,) * (ndims-1) + (num.size(-1),) + (1,)
+        denom = (num.unsqueeze(-2).repeat(sizes) * self.denom_mask).sum(dim=-1)
+
+        return num / denom
+        """
+        zs = []
+        for ys in y.split(self.softmax_sizes, dim=-1):
+            zs.append(F.softmax(ys, dim=-1))
+        return torch.cat(zs, dim=-1)
 
 
 class ParameterEmbedding(nn.Module):
@@ -162,6 +186,8 @@ class ParameterEmbedding(nn.Module):
             weight_idxs += [ k for _ in range(num_values_per_param) ]
         self.weight_idxs = torch.tensor(weight_idxs, dtype=torch.long).cuda()
 
+        self.relu = nn.ReLU()
+
     #   Manual regularization of param weights.
     def maybe_regularize_weights(self):
         FACTOR = 10.0
@@ -171,12 +197,12 @@ class ParameterEmbedding(nn.Module):
             self.weights.data /= l1_norm
 
     def forward(self, x):
-        self.maybe_regularize_weights()
+        # self.maybe_regularize_weights()
 
         #   self.weight:      [ w1, w2, w3 ]
         #   self.weight_idxs: [ 0,  0,  1,  1,  1,  2,  2,  2,  2  ]
         #   weight:           [ w1, w1, w2, w2, w2, w3, w3, w3, w3 ]
-        weights = torch.index_select(self.weights, 0, self.weight_idxs)
+        weights = torch.index_select(self.relu(self.weights), 0, self.weight_idxs)
 
         #   x.shape:  (d1, ..., dN, num_values)
         #   w.shape:  (num_values,)
