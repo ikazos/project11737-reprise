@@ -1,6 +1,8 @@
 import os
 import pickle
 import numpy as np
+import argparse
+from os.path import join
 from tqdm import tqdm
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
@@ -11,6 +13,39 @@ from lang_embed import WalsInfo, EmbeddingPairBuilder
 
 import warnings
 warnings.filterwarnings('ignore')
+
+PATH_BASELINE_MT = join(PATH_DATA_LANGVEC, "mtvec.pkl")
+PATH_BASELINE_MTCELL = join(PATH_DATA_LANGVEC, "mtcell.pkl")
+PATH_BASELINE_MTCELL2 = join(PATH_DATA_LANGVEC, "mtcell2.pkl")
+
+# arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("--langvec", "-lv", default=None, required=False, type=str,
+                    help="path to the langvec dir")
+parser.add_argument("--exclude_baseline", "-eb",
+                    action='store_true', default=False)
+parser.add_argument("--verbose", "-v", default=False, type=bool)
+args = parser.parse_args()
+
+# assert os.path.isdir(args.langvec), f"{args.langvec} is not a directory"
+
+
+def get_name_from_path(path):
+    name = path.split("/")[-1]
+    name = ".".join(name.split(".")[:-1])
+    return name
+
+
+def get_path_langvecs(out_path=None):
+    path_langvecs = [PATH_BASELINE_MT,
+                     PATH_BASELINE_MTCELL, PATH_BASELINE_MTCELL2] if not args.exclude_baseline else []
+    if out_path is not None:
+        print(
+            f"testing {os.listdir(out_path)} + 3 baselines(mtvec, mtcell, mtcell2)")
+        path_langvecs += [join(args.langvec, f)
+                          for f in os.listdir(out_path)]
+    path_langvecs = [(get_name_from_path(p), p) for p in path_langvecs]
+    return path_langvecs
 
 
 def load_sigtyp_csv(path, walsinfo, blinded=False):
@@ -44,16 +79,19 @@ def load_data_tp(path_data=PATH_DATA_TYP, path_wals=PATH_DATA_WALS):
     return walsinfo, train, dev, test
 
 
-def train_tp(langvec, walsinfo, train, dev, test=None, path_save=None):
+def train_tp(vec_name, langvec, walsinfo, train, dev, test=None, path_save=None):
     def construct_xy_blinded(langvec, data, param_idx):
         langs, xs, ys = [], [], []
         for name, param_gold, param_blinded in zip(data.iso639p3s, data.param_dicts, data.blinded_param_dicts):
             if param_idx in param_blinded:
-                try:
+                if name in langvec:
                     langs.append(name)
-                    xs.append(langvec[name])
+                    x_lang = langvec[name]
+                    if not isinstance(x_lang, list):
+                        x_lang = [t.tolist() for t in x_lang]
+                    xs.append(x_lang)
                     ys.append(param_gold[param_idx])
-                except:
+                else:
                     # print(f"{name} not in langvec")
                     pass
         return xs, ys, langs
@@ -62,10 +100,13 @@ def train_tp(langvec, walsinfo, train, dev, test=None, path_save=None):
         xs, ys = [], []
         for name, param in zip(data.iso639p3s, data.param_dicts):
             if param_idx in param:
-                try:
-                    xs.append(langvec[name])
+                if name in langvec:
+                    x_lang = langvec[name]
+                    if not isinstance(x_lang, list):
+                        x_lang = [t.tolist() for t in x_lang]
+                    xs.append(x_lang)
                     ys.append(param[param_idx])
-                except:
+                else:
                     # print(f"{name} not in langvec")
                     pass
         return xs, ys
@@ -81,7 +122,7 @@ def train_tp(langvec, walsinfo, train, dev, test=None, path_save=None):
                 total_dev += 1
             if test_f1 and test_acc:
                 total_test_f1 += test_f1
-                total_test_acc += test_f1
+                total_test_acc += test_acc
                 total_test += 1
         avg_dev_f1 = total_dev_f1/total_dev
         avg_dev_acc = total_dev_acc/total_dev
@@ -89,8 +130,9 @@ def train_tp(langvec, walsinfo, train, dev, test=None, path_save=None):
         avg_test_acc = total_test_acc/total_test
         avg_res = {"dev_f1": avg_dev_f1, "dev_acc": avg_dev_acc,
                    "test_f1": avg_test_f1, "test_acc": avg_test_acc}
-        print(
-            f"avg. Dev f1: {avg_dev_f1:.3f}\navg. Dev acc: {avg_dev_acc:.3f}\navg. Test f1: {avg_test_f1:.3f}\navg. Test acc: {avg_test_acc:.3f}")
+        if args.verbose:
+            print(
+                f"avg. Dev f1: {avg_dev_f1:.3f}\navg. Dev acc: {avg_dev_acc:.3f}\navg. Test f1: {avg_test_f1:.3f}\navg. Test acc: {avg_test_acc:.3f}")
         return avg_res
 
     def train_one_model(x_train, y_train, x_dev=None, y_dev=None, path_save=None, std=False, use_weight=False, pca=False, use_lin_train=False, categorical=True, random_seed=42, max_iter=2000):
@@ -114,7 +156,17 @@ def train_tp(langvec, walsinfo, train, dev, test=None, path_save=None):
         solver, c = "lbfgs", 1.0
         model = LogisticRegression(random_state=random_seed, multi_class="multinomial", solver=solver, C=c,
                                    max_iter=max_iter, penalty="l2", class_weight=None)
-        model.fit(x_train, y_train)
+        # print(type(x_train))
+        # print(type(x_train[0]))
+        # print(len(x_train))
+        # print(len(x_train[0]))
+        # print(len(y_train))
+        try:
+            model.fit(x_train, y_train)
+        except:
+            print(x_train)
+            print(y_train)
+            raise
         return model, scaler
 
     def eval_one_label(pred_label, x_dev, y_dev, x_test=None, y_test=None):
@@ -170,10 +222,11 @@ def train_tp(langvec, walsinfo, train, dev, test=None, path_save=None):
         x_train, y_train = construct_xy(langvec, train, param_idx)
         x_dev, y_dev = construct_xy(langvec, dev, param_idx)
         if len(x_train) == 0 and len(x_dev) == 0:
-            print(f"{param_name} does not exist in  train data")
+            if args.verbose:
+                print(f"{param_name} does not exist in  train data")
             continue
         if len(set(y_train+y_dev)) == 1:
-            pred_label = list(set(y_dev))[0]
+            pred_label = list(set(y_train+y_dev))[0]
             res, preds = eval_one_label(
                 pred_label, x_dev, y_dev, x_test, y_test)
         else:
@@ -200,7 +253,7 @@ def train_tp(langvec, walsinfo, train, dev, test=None, path_save=None):
         save_pkl(models_preds, path_save+"preds.pkl")
         save_json(avg_res, path_save+"summary.json")
 
-    return models, models_preds
+    return models, models_preds, avg_res
 
 
 def infer_tp():
@@ -212,8 +265,12 @@ def score_tp():
 
 
 if __name__ == "__main__":
+    path_langvecs = get_path_langvecs(args.langvec)
     walsinfo, train, dev, test = load_data_tp()
-    langvec = load_langvec(PATH_DATA_LANGVEC+"mtvec.pkl")
-    # langvec = load_langvec(PATH_DATA_LANGVEC+"mtcell.pkl")
-    models, models_preds = train_tp(langvec, walsinfo, train, dev, test,
-                                    PATH_SAVE_MODEL+"typology-prediction/")
+
+    res = {}
+    for vec_name, path in path_langvecs[:2]:
+        langvec = load_langvec(path)
+        models, models_preds, model_res = train_tp(vec_name, langvec, walsinfo, train, dev, test,
+                                                   PATH_SAVE_MODEL+"typology-prediction/")
+        res[vec_name] = model_res
