@@ -5,6 +5,13 @@ from torch.distributions.normal import Normal
 
 from onmt.utils.logging import logger
 
+import gc
+import humanize
+
+def memusage(tensor, name):
+    nbytes = humanize.naturalsize(tensor.numel() * tensor.element_size())
+    print("Tensor \"{}\" takes up {} of memory.".format(name, nbytes))
+
 class LookupEmbedding(nn.Module):
     def __init__(self, st, langs):
         """
@@ -55,14 +62,18 @@ class LookupEmbedding(nn.Module):
             logger.info("Lang ID {} ({}) maps to {}".format(lang[1], lang[0], k))
             lang_map[lang[1]] = k
         self.lang_map = torch.tensor(lang_map, dtype=torch.long).cuda()
+        memusage(self.lang_map, "lang_map")
+
         self.max_lang_vocab_idx = torch.tensor([max_lang_vocab_idx], dtype=torch.long).cuda()
+        memusage(self.max_lang_vocab_idx, "max_lang_vocab_idx")
 
         num_embeddings = len(langs)
         embedding_dim = num_values
 
         weight = torch.zeros((num_embeddings, embedding_dim)).cuda()
-        self.gold = torch.zeros((num_embeddings, embedding_dim)).cuda()
+        # self.gold = torch.zeros((num_embeddings, embedding_dim)).cuda()
         self.gold_mask = torch.zeros((num_embeddings, embedding_dim), dtype=torch.bool).cuda()
+        memusage(self.gold_mask, "gold_mask")
         # self.denom_mask = torch.zeros((embedding_dim, embedding_dim), dtype=torch.bool).cuda()
         self.softmax_sizes = []
 
@@ -83,7 +94,7 @@ class LookupEmbedding(nn.Module):
                     param_value_idx = param_dict[param_idx] - 1
 
                     weight[k][offset + param_value_idx] = 1.0
-                    self.gold[k][offset + param_value_idx] = 1.0
+                    # self.gold[k][offset + param_value_idx] = 1.0
                     self.gold_mask[k][offset : offset + param_value_space_size] = True
 
                 #   We only need to fill denom_mask once (for one language)
@@ -98,6 +109,7 @@ class LookupEmbedding(nn.Module):
             weight,
             freeze=False
         )
+        memusage(self.embedding.weight, "embedding.weight")
 
         def overwrite_gold(grad):
             return grad * self.gold_mask.logical_not()
@@ -105,6 +117,8 @@ class LookupEmbedding(nn.Module):
         self.embedding.weight.register_hook(overwrite_gold)
         self.embedding.skip_init = True
         self.embedding.weight.skip_init = True
+
+        gc.collect()
 
     def forward(self, x):
         """
@@ -144,10 +158,23 @@ class LookupEmbedding(nn.Module):
 
         return num / denom
         """
+        
+        """
         zs = []
         for ys in y.split(self.softmax_sizes, dim=-1):
             zs.append(F.softmax(ys, dim=-1))
+
+        gc.collect()
         return torch.cat(zs, dim=-1)
+        """
+        if len(self.softmax_sizes) == 0:
+            logger.warn("self.softmax_sizes is somehow empty")
+        splits = list(y.split(self.softmax_sizes, dim=-1))
+        for k in range(len(splits)):
+            splits[k] = F.softmax(splits[k], dim=-1)
+
+        gc.collect()
+        return torch.cat(splits, dim=-1)
 
 
 class ParameterEmbedding(nn.Module):
@@ -170,6 +197,7 @@ class ParameterEmbedding(nn.Module):
         emb_weight.requires_grad = True
         # self.register_parameter(name="embedding", param=nn.Parameter(emb_weight.cuda()))
         self.embedding = nn.Parameter(emb_weight.cuda(), requires_grad=True)
+        memusage(self.embedding, "embedding")
         self.embedding.skip_init = True
 
         #   It's probably ok to just initialize weights to 1's
@@ -178,6 +206,7 @@ class ParameterEmbedding(nn.Module):
         weights = torch.arange(num_params, dtype=torch.float32, requires_grad=True) / 10.0
         # self.register_parameter(name="weights", param=nn.Parameter(weights.cuda()))
         self.weights = nn.Parameter(weights.cuda(), requires_grad=True)
+        memusage(self.weights, "weights")
         self.weights.skip_init = True
 
         weight_idxs = []
@@ -185,8 +214,11 @@ class ParameterEmbedding(nn.Module):
             num_values_per_param = len(self.walsinfo.param_idx_to_param_value_idx_to_param_value_name[param_idx])
             weight_idxs += [ k for _ in range(num_values_per_param) ]
         self.weight_idxs = torch.tensor(weight_idxs, dtype=torch.long).cuda()
+        memusage(self.weight_idxs, "weight_idxs")
 
         self.relu = nn.ReLU()
+
+        gc.collect()
 
     #   Manual regularization of param weights.
     def maybe_regularize_weights(self):
@@ -214,6 +246,7 @@ class ParameterEmbedding(nn.Module):
         embs = torch.tensordot(xw, self.embedding, dims=1)
         assert(embs.shape == x.shape[:-1] + self.embedding.shape[1:])
 
+        gc.collect()
         return embs
 
 
@@ -229,6 +262,8 @@ class WordOrLanguageEmbedding(nn.Module):
 
         self.lang_id_idxs = torch.tensor(lang_id_idxs, dtype=torch.long).cuda()
 
+        gc.collect()
+
     def forward(self, x):
         #   Which of indices in x are language ID tokens?
         # singleton_masks = [ x == lii for lii in self.lang_id_idxs ]
@@ -241,4 +276,5 @@ class WordOrLanguageEmbedding(nn.Module):
         word_embeddings = self.word_embedding(x)
         lang_embeddings = self.lang_embedding(x)
 
+        gc.collect()
         return word_embeddings * word_mask + lang_embeddings * lang_mask
