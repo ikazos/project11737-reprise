@@ -1,33 +1,42 @@
 data:
     corpus_1:
-        path_src: project11737-reprise/sozaki/fakedata/test/src-train.txt
-        path_tgt: project11737-reprise/sozaki/fakedata/test/tgt-train.txt
+        path_src: /home/ubuntu/project11737-reprise/data/bpe-bible-com/altogether/eng-as-tgt-lang/src-train.txt
+        path_tgt: /home/ubuntu/project11737-reprise/data/bpe-bible-com/altogether/eng-as-tgt-lang/tgt-train.txt
     valid:
-        path_src: project11737-reprise/sozaki/fakedata/test/src-val.txt
-        path_tgt: project11737-reprise/sozaki/fakedata/test/tgt-val.txt
+        path_src: /home/ubuntu/project11737-reprise/data/bpe-bible-com/altogether/eng-as-tgt-lang/src-val-sampled.txt
+        path_tgt: /home/ubuntu/project11737-reprise/data/bpe-bible-com/altogether/eng-as-tgt-lang/tgt-val-sampled.txt
 
-wals_dir: /home/ubuntu/project11737-reprise/sozaki/fakedata/wals
-sigtyp_dir: /home/ubuntu/project11737-reprise/sozaki/fakedata/sigtyp
-vocab_fields: /home/ubuntu/project11737-reprise/sozaki/fakedata/example.vocab.pt
+num_dev_bucket: 500
+wals_dir: /home/ubuntu/project11737-reprise/sozaki/realdata/wals
+sigtyp_dir: /home/ubuntu/project11737-reprise/sozaki/realdata/sigtyp
+vocab_fields: /home/ubuntu/project11737-reprise/saved_data/typvec/data.vocab.pt
 
 use_sigtyp_train: True
 use_sigtyp_dev: True
 use_sigtyp_test_blinded: True
+save_lang_embed_info: /home/ubuntu/project11737-reprise/saved_data/typvec/lang-embed-map-info.pt
 
-src_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.src
-tgt_vocab: project11737-reprise/sozaki/fakedata/test/run/example.vocab.tgt
+src_vocab: /home/ubuntu/project11737-reprise/data/bpe-bible-com/model.vocab
+tgt_vocab: /home/ubuntu/project11737-reprise/data/bpe-bible-com/model.vocab
+src_vocab_size: 64000
+tgt_vocab_size: 64000
+share_vocab: True
+share_embeddings: True
+dump_fields: True
 
 save_model: /home/ubuntu/project11737-reprise/saved_models/typvec/model
 save_data: /home/ubuntu/project11737-reprise/saved_data/typvec/data
-overwrite: False
+log_file: /home/ubuntu/project11737-reprise/logs/typvec/typvec.log
+overwrite: True
 
 
-save_checkpoint_steps: 5000
-keep_checkpoint: 10
+save_checkpoint_steps: 200
+keep_checkpoint: 6
 seed: 3435
-train_steps: 100000
-valid_steps: 10000
-report_every: 100
+train_steps: 49000 # 3 epochs / apprx. 1 epoch == 15k steps (5686851/48/8=14809)
+valid_steps: 200
+report_every: 20
+
 
 rnn_type: LSTM
 encoder_type: brnn
@@ -40,7 +49,8 @@ optim: adam
 # decay_method: noam
 learning_rate: 0.001
 
-batch_size: 128
+batch_size: 44
+valid_batch_size: 44
 dropout: 0.5
 
 copy_attn: 'true'
@@ -48,9 +58,13 @@ global_attention: mlp
 reuse_copy_attn: 'true'
 bridge: 'true'
 
-world_size: 4
+world_size: 8
 gpu_ranks:
 - 0
 - 1
 - 2
 - 3
+- 4
+- 5
+- 6
+- 7
