@@ -3,6 +3,7 @@ import argparse
 import torch
 import pickle
 import json
+from time import time
 from pprint import pprint
 from tqdm import tqdm
 import onmt.inputters as inputters
@@ -88,7 +89,7 @@ def get_langvec_from_enc_states(enc_states, use_hidden=False, contextualized=Tru
         return _cell_direction[0].sum(dim=0), _cell_direction[1].sum(dim=0)
 
 
-def run_model_for_one_lang(args, model, fields, path_data, batch_size=50, shard_size=0):
+def run_model_for_one_lang(args, model, fields, path_data, batch_size=40, shard_size=0):
     src_shards = split_corpus(path_data, shard_size)
     total_vec = {"cell": {"context1": None, "context2": None,
                           "uncontext1": None, "uncontext2": None},
@@ -108,9 +109,10 @@ def run_model_for_one_lang(args, model, fields, path_data, batch_size=50, shard_
                                               batch_size_fn=None, train=False, sort=False, sort_within_batch=True, shuffle=False,)
 
         batch_num = 0
+        max_batch_num = 100  # 1250
         with torch.no_grad():
-            for batch in tqdm(data_iter, total=2000):
-                if batch_num > 2000:
+            for batch in data_iter:
+                if batch_num > max_batch_num:
                     break
                 batch_num += 1
                 src, src_lengths = (
@@ -146,6 +148,8 @@ def run_model_for_one_lang(args, model, fields, path_data, batch_size=50, shard_
         for context_mode in ["context", "uncontext"]:
             for layer_mode in ["1", "2"]:
                 total_vec[mode][context_mode+layer_mode] /= total_num_vec
+                total_vec[mode][context_mode +
+                                layer_mode] = total_vec[mode][context_mode+layer_mode].tolist()
     return total_vec, total_num_vec
 
 
@@ -204,17 +208,21 @@ print("")
 # run the model with LANG_en train data, and get avg. cell state
 print("================================================================================")
 print("Loading map info...")
-print("")
 
 info = torch.load(args.save_lang_embed_info)
 langs = info["langs"]
 sigtyp = info["sigtyp"]
 walsinfo = info["walsinfo"]
 
+print("# langs:", len(langs))
+
 emb_dim = enc_param_emb.size(1)
 
 lookup_embedding = LookupEmbedding(sigtyp, langs)
 param_embedding = ParameterEmbedding(sigtyp, emb_dim)
+
+print("# softmax_sizes:", len(lookup_embedding.softmax_sizes))
+print("")
 
 # swap out the tensors
 lookup_embedding.embedding.weight.data = enc_lookup_emb_weight.to(device)
@@ -298,8 +306,12 @@ for (iso639p3, _), lookup in zip(langs, lookup_batch):
 
 # run the model with LANG_en train data, and get avg. cell state
 # lang_vec_cell_uncontext, lang_vec_cell_context = {}, {}
+print("================================================================================")
+print("Extracting Average Cell/Hidden states...")
+print("")
+start_time = time()
 lang_rnn_vec = {}
-for lang, lang_idx in langs:
+for lang, lang_idx in tqdm(langs):
     path_lang = os.path.join(args.data, lang+"-eng", args.mode)
     path_train_src, path_train_tgt = os.path.join(
         path_lang, "src-train.txt"), os.path.join(path_lang, "tgt-train.txt")
@@ -307,6 +319,7 @@ for lang, lang_idx in langs:
         args, model_run, fields, path_train_src)
     lang_rnn_vec[lang] = rnn_vectors
 
+print(f"Etraction took {time()-start_time:.2f}s")
 
 # save resulting langvecs (lang_vec_emb, lang_vec_cell_uncontext, lang_vec_cell_context)
 # output should be a langvec dict something like {"deu":[0.1, 0.03, ...], "kor": [-0.2, 0.01, ...]}
