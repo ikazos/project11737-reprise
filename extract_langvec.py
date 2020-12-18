@@ -111,7 +111,7 @@ def run_model_for_one_lang(args, model, fields, path_data, batch_size=40, shard_
         batch_num = 0
         max_batch_num = 100  # 1250
         with torch.no_grad():
-            for batch in data_iter:
+            for batch in tqdm(data_iter, total=min(max_batch_num, len(data_iter))):
                 if batch_num > max_batch_num:
                     break
                 batch_num += 1
@@ -255,6 +255,8 @@ print("")
 
 used_param_idxs = sorted(list(sigtyp.used_param_idxs))
 
+wrong_gold = 0  # How many gold values do the embeddings get wrong?
+gold_count = 0  # How many gold values are there?
 for (iso639p3, _), lookup in zip(langs, lookup_batch):
     print("Processing language {}...".format(iso639p3))
 
@@ -275,6 +277,7 @@ for (iso639p3, _), lookup in zip(langs, lookup_batch):
 
     offset = 0
     for param_idx in used_param_idxs:
+        param_name = walsinfo.param_idx_to_name[param_idx]
         param_values_dict = walsinfo.param_idx_to_param_value_idx_to_param_value_name[
             param_idx]
         size = len(param_values_dict)
@@ -284,12 +287,13 @@ for (iso639p3, _), lookup in zip(langs, lookup_batch):
         if param_idx in sigtyp.param_dicts[sigtyp_idx]:
             sigtyp_gold = sigtyp.param_dicts[sigtyp_idx][param_idx]
 
+            gold_count += 1
             if pred != sigtyp_gold:
-                print("WRONG: Sigtyp gold is {}, pred is {}".format(
-                    sigtyp_gold, pred))
+                print("[{}] Gold value is {} for parameter {} \"{}\", pred is {}".format(
+                    iso639p3, sigtyp_gold, param_idx, param_name, pred))
                 # raise Exception()
+                wrong_gold += 1
         else:
-            param_name = walsinfo.param_idx_to_name[param_idx]
             print("[{}] No gold value for parameter {} \"{}\",".format(
                 iso639p3, param_idx, param_name))
             print("    filling in with prediction {} \"{}\"...".format(
@@ -304,6 +308,10 @@ for (iso639p3, _), lookup in zip(langs, lookup_batch):
 
         offset += size
 
+print("{} out of {} gold values are WRONG ({}%)".format(
+    wrong_gold, gold_count, wrong_gold * 10000 // gold_count / 100
+))
+
 # run the model with LANG_en train data, and get avg. cell state
 # lang_vec_cell_uncontext, lang_vec_cell_context = {}, {}
 print("================================================================================")
@@ -311,7 +319,7 @@ print("Extracting Average Cell/Hidden states...")
 print("")
 start_time = time()
 lang_rnn_vec = {}
-for lang, lang_idx in tqdm(langs):
+for lang, lang_idx in langs:
     path_lang = os.path.join(args.data, lang+"-eng", args.mode)
     path_train_src, path_train_tgt = os.path.join(
         path_lang, "src-train.txt"), os.path.join(path_lang, "tgt-train.txt")
@@ -319,7 +327,7 @@ for lang, lang_idx in tqdm(langs):
         args, model_run, fields, path_train_src)
     lang_rnn_vec[lang] = rnn_vectors
 
-print(f"Etraction took {time()-start_time:.2f}s")
+print(f"Extraction took {time()-start_time:.2f}s")
 
 # save resulting langvecs (lang_vec_emb, lang_vec_cell_uncontext, lang_vec_cell_context)
 # output should be a langvec dict something like {"deu":[0.1, 0.03, ...], "kor": [-0.2, 0.01, ...]}
