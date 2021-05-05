@@ -180,6 +180,7 @@ class LookupEmbedding(nn.Module):
         return torch.cat(splits, dim=-1)
 
 
+
 class ParameterEmbedding(nn.Module):
     def __init__(self, st, emb_dim):
         super(ParameterEmbedding, self).__init__()
@@ -206,9 +207,9 @@ class ParameterEmbedding(nn.Module):
 
         #   It's probably ok to just initialize weights to 1's
         num_params = len(self.used_param_idxs)
-        #weights = torch.ones((num_params,), dtype=torch.float32, requires_grad=True)
-        weights = torch.arange(
-            num_params, dtype=torch.float32, requires_grad=True) / 10.0
+        weights = torch.zeros((num_params,), dtype=torch.float32, requires_grad=True)
+        # weights = torch.arange(
+            # num_params, dtype=torch.float32, requires_grad=True) / 10.0
         # self.register_parameter(name="weights", param=nn.Parameter(weights.cuda()))
         self.weights = nn.Parameter(weights.cuda(), requires_grad=True)
         memusage(self.weights, "weights")
@@ -221,8 +222,6 @@ class ParameterEmbedding(nn.Module):
             weight_idxs += [k for _ in range(num_values_per_param)]
         self.weight_idxs = torch.tensor(weight_idxs, dtype=torch.long).cuda()
         memusage(self.weight_idxs, "weight_idxs")
-
-        self.relu = nn.ReLU()
 
     #   Manual regularization of param weights.
     def maybe_regularize_weights(self):
@@ -239,7 +238,7 @@ class ParameterEmbedding(nn.Module):
         #   self.weight_idxs: [ 0,  0,  1,  1,  1,  2,  2,  2,  2  ]
         #   weight:           [ w1, w1, w2, w2, w2, w3, w3, w3, w3 ]
         weights = torch.index_select(
-            self.relu(self.weights), 0, self.weight_idxs)
+            F.softmax(self.weights), 0, self.weight_idxs)
 
         #   x.shape:  (d1, ..., dN, num_values)
         #   w.shape:  (num_values,)
